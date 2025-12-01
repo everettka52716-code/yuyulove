@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>煮鱼空间认证 (阿里极速版)</title>
+    <title>煮鱼空间 (诊断版)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Microsoft YaHei', sans-serif; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
@@ -12,83 +12,72 @@
         /* 登录弹窗 */
         #login-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); z-index: 100;
+            background: rgba(0,0,0,0.9); z-index: 100;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: white; transition: opacity 0.5s;
+            color: white;
         }
         #login-box {
-            background: #111; padding: 40px; border: 1px solid #00ffcc; border-radius: 15px;
-            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2); text-align: center;
+            background: #111; padding: 30px; border: 1px solid #00ffcc; border-radius: 15px;
+            text-align: center; width: 80%; max-width: 300px;
         }
-        h2 { margin-top: 0; color: #00ffcc; text-transform: uppercase; letter-spacing: 2px; }
         input {
-            background: #222; border: 1px solid #444; color: #fff; padding: 10px 15px;
-            font-size: 18px; border-radius: 5px; outline: none; margin: 20px 0;
-            text-align: center; width: 200px; transition: border-color 0.3s;
+            background: #222; border: 1px solid #444; color: #fff; padding: 10px;
+            font-size: 16px; border-radius: 5px; margin: 15px 0; text-align: center; width: 80%;
         }
-        input:focus { border-color: #ff69b4; }
         button {
-            background: linear-gradient(45deg, #00ffcc, #0088ff); border: none; padding: 10px 30px;
-            color: #000; font-weight: bold; font-size: 16px; border-radius: 25px;
-            cursor: pointer; transition: transform 0.2s;
+            background: #00ffcc; border: none; padding: 10px 30px; color: #000;
+            font-weight: bold; font-size: 16px; border-radius: 25px; cursor: pointer;
         }
-        button:hover { transform: scale(1.05); box-shadow: 0 0 15px #00ffcc; }
 
-        /* 文字与UI */
+        /* 调试控制台 - 关键 */
+        #debug-console {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 150px;
+            background: rgba(0,0,0,0.8); color: #0f0; font-family: monospace; font-size: 10px;
+            overflow-y: scroll; z-index: 999; padding: 10px; pointer-events: none;
+            border-top: 1px solid #333; display: block;
+        }
+        .log-error { color: #ff3333; font-weight: bold; }
+        .log-info { color: #00ffcc; }
+
+        /* 文字特效 */
         #fan-text {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
-            color: #ff69b4; font-size: 80px; font-weight: 900; z-index: 20; opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none;
-            text-shadow: 0 0 20px #ff0055, 0 0 40px #ff0055; white-space: nowrap; text-align: center;
+            color: #ff69b4; font-size: 50px; font-weight: 900; z-index: 20; opacity: 0;
+            transition: all 0.4s; pointer-events: none; white-space: nowrap; text-shadow: 0 0 20px #ff0055;
         }
         #fan-text.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        .highlight-id { color: #00ffcc; text-shadow: 0 0 20px #00ffcc; margin-right: 15px; }
-        #ui-layer {
-            position: absolute; top: 20px; left: 20px; color: #00ffcc; z-index: 10;
-            pointer-events: none; background: rgba(0, 0, 0, 0.5); padding: 15px;
-            border: 1px solid #00ffcc; border-radius: 8px; opacity: 0; transition: opacity 1s;
-        }
-        .loading { color: #ff0055; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
+        .highlight-id { color: #00ffcc; margin-right: 10px; }
     </style>
 </head>
 <body>
 
     <div id="login-modal">
         <div id="login-box">
-            <h2>煮鱼空间认证</h2>
-            <p style="font-size: 12px; color: #888;">阿里源加速版 (无需VPN)</p>
-            <input type="text" id="username-input" maxlength="5" placeholder="例如：煮鱼">
+            <h2 style="color:#00ffcc; margin:0 0 10px 0;">身份认证</h2>
+            <input type="text" id="username-input" maxlength="5" placeholder="输入昵称">
             <br>
-            <button onclick="startExperience()">进入空间</button>
-            <p id="error-msg" style="color:red; font-size:12px; margin-top:10px; display:none;">资源加载失败，请刷新重试</p>
+            <button id="enter-btn" onclick="startExperience()">进入空间</button>
+            <p id="loading-status" style="font-size:12px; color:#888; margin-top:10px;">资源初始化中...</p>
         </div>
     </div>
 
     <div id="fan-text"></div>
-
-    <div id="ui-layer">
-        <h3>System Status</h3>
-        <p>User: <span id="display-username" style="color:white">Unknown</span></p>
-        <p>Camera: <span id="status-text" class="loading">Waiting...</span></p>
-        <div style="margin-top: 10px; border-top: 1px dashed #00ffcc; padding-top:10px;">
-            <p>1. 捏合手指: 红色聚能</p>
-            <p>2. 张开五指: 认证铁粉</p>
-        </div>
-    </div>
-
     <video id="input-video"></video>
     <div id="canvas-container"></div>
 
-    <!-- 核心修改：使用 npm.elemecdn.com (饿了么源，非常稳) -->
+    <!-- 屏幕上的调试输出窗口 -->
+    <div id="debug-console">System Log Initialized...<br></div>
+
+    <!-- 1. 引入 Three.js (使用 Staticfile 源，更稳) -->
     <script type="importmap">
         {
             "imports": {
-                "three": "https://npm.elemecdn.com/three@0.160.0/build/three.module.js"
+                "three": "https://cdn.staticfile.org/three.js/0.160.0/three.module.js"
             }
         }
     </script>
     
+    <!-- 2. 引入 MediaPipe (使用 Eleme 源) -->
     <script src="https://npm.elemecdn.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://npm.elemecdn.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://npm.elemecdn.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -97,19 +86,58 @@
     <script type="module">
         import * as THREE from 'three';
 
+        // --- 屏幕日志工具 ---
+        function log(msg, type='info') {
+            const consoleDiv = document.getElementById('debug-console');
+            const statusDiv = document.getElementById('loading-status');
+            const line = document.createElement('div');
+            line.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            if(type === 'error') {
+                line.className = 'log-error';
+                if(statusDiv) {
+                    statusDiv.innerText = "错误: " + msg;
+                    statusDiv.style.color = "red";
+                }
+            } else {
+                line.className = 'log-info';
+            }
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            // 同时打印到浏览器控制台
+            if(type === 'error') console.error(msg); else console.log(msg);
+        }
+
+        // 全局错误捕获
+        window.onerror = function(msg, url, line) {
+            log(`Global Error: ${msg} (Line ${line})`, 'error');
+            return false;
+        };
+
+        log("Three.js detected: " + (typeof THREE !== 'undefined'));
+        log("MediaPipe checking...");
+
+        // 检查库是否加载
+        setTimeout(() => {
+            if(typeof Hands === 'undefined') {
+                log("严重错误: MediaPipe 库加载失败！请检查网络或刷新。", 'error');
+                document.getElementById('enter-btn').style.background = '#555';
+                document.getElementById('enter-btn').disabled = true;
+                document.getElementById('enter-btn').innerText = "加载失败";
+            } else {
+                log("MediaPipe library loaded successfully.");
+                document.getElementById('loading-status').innerText = "资源就绪，请点击进入";
+                document.getElementById('loading-status').style.color = "#0f0";
+            }
+        }, 2000);
+
         let currentUserId = "";
         let scene, camera, renderer, material, points;
         let positions, velocities, initialPositions;
         let time = 0;
         let handData = { active: false, x: 0, y: 0, gesture: 'NONE' };
         
-        // 简单的错误捕获，如果报错了在界面上提示一下
-        window.onerror = function() {
-            document.getElementById('error-msg').style.display = 'block';
-        };
-
         const CONFIG = {
-            particleCount: 20000,
+            particleCount: 15000, // 稍微减少粒子数以防卡顿
             colors: {
                 base: new THREE.Color(0x0088ff),
                 pinch: new THREE.Color(0xff0000),
@@ -118,34 +146,32 @@
         };
 
         window.startExperience = function() {
+            log("Button clicked. Attempting to start...");
             const input = document.getElementById('username-input');
             const val = input.value.trim();
-            if (!val) { alert("请输入ID才能进入！"); return; }
 
-            // 检查库是否加载成功
-            if (typeof Hands === 'undefined') {
-                alert("资源正在下载中，请稍等几秒钟再点击，或者刷新页面重试。");
-                return;
-            }
+            if (!val) { alert("请输入昵称"); return; }
+            if (typeof Hands === 'undefined') { alert("核心组件未加载，无法启动。请看下方红字报错。"); return; }
 
             currentUserId = val;
-            document.getElementById('display-username').innerText = currentUserId;
-
-            const modal = document.getElementById('login-modal');
-            modal.style.opacity = '0';
-            setTimeout(() => modal.style.display = 'none', 500);
-            document.getElementById('ui-layer').style.opacity = '1';
+            
+            // 隐藏弹窗
+            document.getElementById('login-modal').style.display = 'none';
+            document.getElementById('debug-console').style.opacity = '0.5'; // 让日志变半透明
 
             try {
                 initThree();
                 initMediaPipe();
                 animate();
+                log("System started.");
             } catch (e) {
-                alert("启动失败：" + e.message);
+                log("Startup Crash: " + e.message, 'error');
+                alert("启动出错: " + e.message);
             }
         };
 
         function initThree() {
+            log("Initializing 3D Scene...");
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x050505, 0.03);
@@ -240,11 +266,11 @@
         }
 
         function initMediaPipe() {
+            log("Initializing Camera & AI...");
             const videoElement = document.getElementById('input-video');
-            const statusText = document.getElementById('status-text');
 
-            // 核心修改：使用 npm.elemecdn.com 加载模型
             const hands = new Hands({locateFile: (file) => {
+                // 强制指定模型文件路径，防止 404
                 return `https://npm.elemecdn.com/@mediapipe/hands/${file}`;
             }});
 
@@ -257,12 +283,10 @@
             });
             
             camera.start().then(() => {
-                statusText.innerText = "已连接 (Connected)";
-                statusText.classList.remove("loading");
-                statusText.style.color = "#00ffcc";
+                log("Camera started successfully.");
             }).catch(e => {
-                statusText.innerText = "Error: " + e;
-                alert("摄像头启动失败。请确保您使用的是 https 协议。");
+                log("Camera access denied: " + e.message, 'error');
+                alert("无法启动摄像头，请确保您在 HTTPS 网站下，并允许了权限。");
             });
         }
 
@@ -274,13 +298,26 @@
                 handData.active = true; handData.x = 1.0 - palm.x; handData.y = palm.y;
                 const thumbTip = landmarks[4]; const indexTip = landmarks[8];
                 const distance = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
-                if (distance < 0.05) { handData.gesture = 'PINCH'; fanText.classList.remove('visible'); }
-                else if (distance > 0.12) {
+                
+                if (distance < 0.05) { 
+                    handData.gesture = 'PINCH'; 
+                    fanText.classList.remove('visible'); 
+                } else if (distance > 0.12) {
+                    if(handData.gesture !== 'OPEN') {
+                         // 稍微加一点防抖，不要频繁触发日志
+                         // log("Gesture Detected: OPEN");
+                    }
                     handData.gesture = 'OPEN';
                     fanText.innerHTML = `<span class="highlight-id">${currentUserId}</span> 是煮鱼铁粉`;
                     fanText.classList.add('visible');
-                } else { handData.gesture = 'NONE'; fanText.classList.remove('visible'); }
-            } else { handData.active = false; fanText.classList.remove('visible'); }
+                } else { 
+                    handData.gesture = 'NONE'; 
+                    fanText.classList.remove('visible'); 
+                }
+            } else { 
+                handData.active = false; 
+                fanText.classList.remove('visible'); 
+            }
         }
     </script>
 </body>
