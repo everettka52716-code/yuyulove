@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>煮鱼空间 (最终修复版)</title>
+    <title>煮鱼空间 (最终灵敏版)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Microsoft YaHei', sans-serif; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
@@ -29,45 +29,49 @@
             font-weight: bold; font-size: 16px; border-radius: 25px; cursor: pointer;
         }
 
-        /* 调试控制台 */
-        #debug-console {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 120px;
-            background: rgba(0,0,0,0.8); color: #0f0; font-family: monospace; font-size: 10px;
-            overflow-y: scroll; z-index: 999; padding: 10px; pointer-events: none;
-            border-top: 1px solid #333; display: block;
+        /* 状态指示器 (左上角) */
+        #status-indicator {
+            position: absolute; top: 10px; left: 10px; z-index: 50;
+            color: #888; font-size: 12px; background: rgba(0,0,0,0.5); padding: 5px 10px;
+            border-radius: 4px; pointer-events: none;
         }
-        .log-error { color: #ff3333; font-weight: bold; }
-        .log-warn { color: #ffff00; }
+        .status-active { color: #00ff00 !important; border: 1px solid #00ff00; }
 
-        /* 文字特效 */
+        /* 核心文字特效 */
         #fan-text {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
-            color: #ff69b4; font-size: 50px; font-weight: 900; z-index: 20; opacity: 0;
-            transition: all 0.4s; pointer-events: none; white-space: nowrap; text-shadow: 0 0 20px #ff0055;
+            color: #ff69b4; font-size: 40px; font-weight: 900; z-index: 99; opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            pointer-events: none; white-space: nowrap; text-align: center;
+            text-shadow: 0 0 10px #ff0055, 0 0 20px #ff0055;
+            width: 100%; /* 防止文字换行被切断 */
         }
         #fan-text.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        .highlight-id { color: #00ffcc; margin-right: 10px; }
+        .highlight-id { color: #00ffcc; margin-right: 5px; display: inline-block; }
     </style>
 </head>
 <body>
 
     <div id="login-modal">
         <div id="login-box">
-            <h2 style="color:#00ffcc; margin:0 0 10px 0;">煮鱼空间</h2>
-            <p style="font-size:12px; color:#888;">最终修复版 (JSDelivr)</p>
-            <input type="text" id="username-input" maxlength="5" placeholder="输入昵称">
+            <h2 style="color:#00ffcc; margin:0 0 10px 0;">身份认证</h2>
+            <input type="text" id="username-input" maxlength="6" placeholder="输入您的ID">
             <br>
             <button id="enter-btn" onclick="startExperience()">进入空间</button>
-            <p id="loading-status" style="font-size:12px; color:#888; margin-top:10px;">正在连接国际节点...</p>
+            <p id="loading-txt" style="font-size:12px; color:#666; margin-top:10px;">资源加载中...</p>
         </div>
     </div>
 
-    <div id="fan-text"></div>
+    <!-- 状态显示 -->
+    <div id="status-indicator">等待摄像头...</div>
+
+    <!-- 文字层 -->
+    <div id="fan-text">测试文字</div>
+
     <video id="input-video"></video>
     <div id="canvas-container"></div>
-    <div id="debug-console">System Log Initialized...<br></div>
 
-    <!-- 1. Three.js: 继续用 Staticfile，因为刚才证明它是好的 -->
+    <!-- 1. Three.js -->
     <script type="importmap">
         {
             "imports": {
@@ -76,8 +80,7 @@
         }
     </script>
     
-    <!-- 2. MediaPipe: 切换回最标准的 JSDelivr 源 -->
-    <!-- 注意：去掉了 crossorigin 属性，防止跨域报错 -->
+    <!-- 2. MediaPipe (JSDelivr) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
@@ -86,50 +89,21 @@
     <script type="module">
         import * as THREE from 'three';
 
-        // 日志工具
-        function log(msg, type='info') {
-            const consoleDiv = document.getElementById('debug-console');
-            const statusDiv = document.getElementById('loading-status');
-            const line = document.createElement('div');
-            line.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            if(type === 'error') {
-                line.className = 'log-error';
-                if(statusDiv) { statusDiv.innerText = "失败: " + msg; statusDiv.style.color = "red"; }
-            } else if (type === 'warn') {
-                line.className = 'log-warn';
-            }
-            consoleDiv.appendChild(line);
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-        }
-
-        window.onerror = function(msg) { log(`System Error: ${msg}`, 'error'); return false; };
-
-        log("Three.js detected: " + (typeof THREE !== 'undefined'));
-        log("Connecting to MediaPipe (JSDelivr)... Please wait.");
-
-        // 延时检查机制
-        let checkCount = 0;
-        const checkInterval = setInterval(() => {
-            checkCount++;
-            if(typeof Hands !== 'undefined') {
-                clearInterval(checkInterval);
-                log("MediaPipe Loaded Successfully!", 'success');
-                document.getElementById('loading-status').innerText = "资源加载完毕！";
-                document.getElementById('loading-status').style.color = "#0f0";
-            } else if (checkCount > 15) { // 等待 15秒
-                clearInterval(checkInterval);
-                log("连接超时。您的网络可能完全屏蔽了外部JS库。", 'error');
-            } else {
-                if(checkCount % 5 === 0) log("Waiting for library... (" + checkCount + "s)");
-            }
-        }, 1000);
-
-        let currentUserId = "";
+        let currentUserId = "游客";
         let scene, camera, renderer, material, points;
         let positions, velocities, initialPositions;
         let time = 0;
         let handData = { active: false, x: 0, y: 0, gesture: 'NONE' };
         
+        // 资源检查
+        const checkInterval = setInterval(() => {
+            if(typeof Hands !== 'undefined') {
+                clearInterval(checkInterval);
+                document.getElementById('loading-txt').innerText = "资源就绪，请点击进入";
+                document.getElementById('loading-txt').style.color = "#00ff00";
+            }
+        }, 500);
+
         const CONFIG = {
             particleCount: 15000, 
             colors: {
@@ -142,22 +116,26 @@
         window.startExperience = function() {
             const input = document.getElementById('username-input');
             const val = input.value.trim();
-
-            if (!val) { alert("请输入昵称"); return; }
-            if (typeof Hands === 'undefined') { alert("资源仍在下载中（国际线路较慢），请再等几秒钟..."); return; }
+            if (!val) { alert("请输入ID"); return; }
+            if (typeof Hands === 'undefined') { alert("资源仍在下载，请稍等2秒..."); return; }
 
             currentUserId = val;
             document.getElementById('login-modal').style.display = 'none';
-            document.getElementById('debug-console').style.opacity = '0.3';
+
+            // --- 强制显示文字测试 (2秒后消失) ---
+            const ft = document.getElementById('fan-text');
+            ft.innerHTML = `<span class="highlight-id">${currentUserId}</span> 是煮鱼铁粉`;
+            ft.classList.add('visible');
+            setTimeout(() => {
+                ft.classList.remove('visible');
+            }, 2000);
+            // ----------------------------------
 
             try {
                 initThree();
                 initMediaPipe();
                 animate();
-                log("Experience Started.");
-            } catch (e) {
-                log("Run Error: " + e.message, 'error');
-            }
+            } catch (e) { alert("启动错误: " + e.message); }
         };
 
         function initThree() {
@@ -255,49 +233,65 @@
         }
 
         function initMediaPipe() {
-            log("Initializing Camera...");
             const videoElement = document.getElementById('input-video');
+            const statusInd = document.getElementById('status-indicator');
+            statusInd.innerText = "正在启动摄像头...";
 
-            // 使用 JSDelivr 的标准路径
             const hands = new Hands({locateFile: (file) => {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
             }});
 
             hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-            hands.onResults(onHandsResults);
+            
+            hands.onResults((results) => {
+                const fanText = document.getElementById('fan-text');
+                
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    // --- 手部被检测到 ---
+                    if(!handData.active) {
+                        statusInd.innerText = "✅ 手部已捕获";
+                        statusInd.classList.add('status-active');
+                    }
+                    
+                    const landmarks = results.multiHandLandmarks[0];
+                    const palm = landmarks[9];
+                    handData.active = true; handData.x = 1.0 - palm.x; handData.y = palm.y;
+                    
+                    const thumbTip = landmarks[4]; 
+                    const indexTip = landmarks[8];
+                    // 计算距离
+                    const distance = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
+                    
+                    // --- 判定逻辑调整 (更灵敏) ---
+                    if (distance < 0.05) { 
+                        handData.gesture = 'PINCH'; 
+                        fanText.classList.remove('visible'); 
+                    } 
+                    else if (distance > 0.08) { // 阈值从 0.12 降到 0.08，更容易触发！
+                        handData.gesture = 'OPEN';
+                        fanText.innerHTML = `<span class="highlight-id">${currentUserId}</span> 是煮鱼铁粉`;
+                        fanText.classList.add('visible');
+                    } 
+                    else { 
+                        handData.gesture = 'NONE'; 
+                        fanText.classList.remove('visible'); 
+                    }
+                } else { 
+                    // --- 没有检测到手 ---
+                    if(handData.active) {
+                        statusInd.innerText = "⚠️ 寻找手部...";
+                        statusInd.classList.remove('status-active');
+                    }
+                    handData.active = false; 
+                    fanText.classList.remove('visible'); 
+                }
+            });
 
             const camera = new Camera(videoElement, {
                 onFrame: async () => await hands.send({image: videoElement}),
                 width: 640, height: 480
             });
-            
-            camera.start().then(() => {
-                log("Camera Active. Ready!");
-            }).catch(e => {
-                log("Camera Failed: " + e.message, 'error');
-                alert("无法启动摄像头，请检查权限。");
-            });
-        }
-
-        function onHandsResults(results) {
-            const fanText = document.getElementById('fan-text');
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
-                const palm = landmarks[9];
-                handData.active = true; handData.x = 1.0 - palm.x; handData.y = palm.y;
-                const thumbTip = landmarks[4]; const indexTip = landmarks[8];
-                const distance = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
-                
-                if (distance < 0.05) { 
-                    handData.gesture = 'PINCH'; fanText.classList.remove('visible'); 
-                } else if (distance > 0.12) {
-                    handData.gesture = 'OPEN';
-                    fanText.innerHTML = `<span class="highlight-id">${currentUserId}</span> 是煮鱼铁粉`;
-                    fanText.classList.add('visible');
-                } else { 
-                    handData.gesture = 'NONE'; fanText.classList.remove('visible'); 
-                }
-            } else { handData.active = false; fanText.classList.remove('visible'); }
+            camera.start();
         }
     </script>
 </body>
