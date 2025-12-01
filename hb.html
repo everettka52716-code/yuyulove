@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>涵堡包空间 (最终版)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Microsoft YaHei', sans-serif; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        #input-video { display: none; }
+        
+        /* 登录弹窗 */
+        #login-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white;
+        }
+        #login-box {
+            background: #111; padding: 30px; border: 1px solid #ff69b4; border-radius: 15px;
+            text-align: center; width: 80%; max-width: 300px;
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.3); /* 粉色光晕 */
+        }
+        h2 { color: #ff69b4; margin: 0 0 10px 0; letter-spacing: 2px; }
+        input {
+            background: #222; border: 1px solid #555; color: #fff; padding: 10px;
+            font-size: 16px; border-radius: 5px; margin: 15px 0; text-align: center; width: 80%;
+        }
+        button {
+            background: linear-gradient(45deg, #ff69b4, #ff1493); border: none; padding: 10px 30px; color: #fff;
+            font-weight: bold; font-size: 16px; border-radius: 25px; cursor: pointer; transition: transform 0.2s;
+        }
+        button:hover { transform: scale(1.05); }
+
+        /* 状态指示器 (左上角) */
+        #status-indicator {
+            position: absolute; top: 10px; left: 10px; z-index: 50;
+            color: #888; font-size: 12px; background: rgba(0,0,0,0.5); padding: 5px 10px;
+            border-radius: 4px; pointer-events: none;
+        }
+        .status-active { color: #00ff00 !important; border: 1px solid #00ff00; }
+
+        /* 核心文字特效 */
+        #fan-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+            color: #ff69b4; font-size: 36px; font-weight: 900; z-index: 99; opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            pointer-events: none; white-space: nowrap; text-align: center;
+            text-shadow: 0 0 10px #ff1493, 0 0 20px #ff1493;
+            width: 100%;
+        }
+        #fan-text.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .highlight-id { color: #fff; margin-right: 5px; display: inline-block; text-shadow: 0 0 10px #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="login-modal">
+        <div id="login-box">
+            <h2>涵堡包空间认证</h2>
+            <input type="text" id="username-input" maxlength="6" placeholder="输入您的昵称">
+            <br>
+            <button id="enter-btn" onclick="startExperience()">进入空间</button>
+            <p id="loading-txt" style="font-size:12px; color:#666; margin-top:10px;">资源加载中...</p>
+        </div>
+    </div>
+
+    <!-- 状态显示 -->
+    <div id="status-indicator">等待摄像头...</div>
+
+    <!-- 文字层 -->
+    <div id="fan-text">测试文字</div>
+
+    <video id="input-video"></video>
+    <div id="canvas-container"></div>
+
+    <!-- 1. Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.staticfile.org/three.js/0.160.0/three.module.js"
+            }
+        }
+    </script>
+    
+    <!-- 2. MediaPipe (JSDelivr) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        let currentUserId = "游客";
+        let scene, camera, renderer, material, points;
+        let positions, velocities, initialPositions;
+        let time = 0;
+        let handData = { active: false, x: 0, y: 0, gesture: 'NONE' };
+        
+        const checkInterval = setInterval(() => {
+            if(typeof Hands !== 'undefined') {
+                clearInterval(checkInterval);
+                document.getElementById('loading-txt').innerText = "资源就绪，请点击进入";
+                document.getElementById('loading-txt').style.color = "#ff69b4";
+            }
+        }, 500);
+
+        const CONFIG = {
+            particleCount: 15000, 
+            colors: {
+                base: new THREE.Color(0x0088ff), // 平时是蓝色
+                pinch: new THREE.Color(0xff0000), // 捏合是红色
+                fan: new THREE.Color(0xff69b4)    // 触发是粉色
+            }
+        };
+
+        window.startExperience = function() {
+            const input = document.getElementById('username-input');
+            const val = input.value.trim();
+            if (!val) { alert("请输入昵称"); return; }
+            if (typeof Hands === 'undefined') { alert("资源仍在下载，请稍等2秒..."); return; }
+
+            currentUserId = val;
+            document.getElementById('login-modal').style.display = 'none';
+
+            // --- 强制显示文字测试 (改为涵堡包) ---
+            const ft = document.getElementById('fan-text');
+            ft.innerHTML = `<span class="highlight-id">${currentUserId}</span> 是涵堡包铁粉 💖`;
+            ft.classList.add('visible');
+            setTimeout(() => {
+                ft.classList.remove('visible');
+            }, 2000);
+            // ----------------------------------
+
+            try {
+                initThree();
+                initMediaPipe();
+                animate();
+            } catch (e) { alert("启动错误: " + e.message); }
+        };
+
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050505, 0.03);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 20;
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+            createParticles();
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function createParticles() {
+            const geometry = new THREE.BufferGeometry();
+            positions = new Float32Array(CONFIG.particleCount * 3);
+            velocities = new Float32Array(CONFIG.particleCount * 3);
+            initialPositions = new Float32Array(CONFIG.particleCount * 3);
+            const colors = new Float32Array(CONFIG.particleCount * 3);
+
+            for (let i = 0; i < CONFIG.particleCount; i++) {
+                const r = 15 * Math.cbrt(Math.random());
+                const theta = Math.random() * 2 * Math.PI;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta);
+                const z = r * Math.cos(phi);
+                positions[i*3] = x; positions[i*3+1] = y; positions[i*3+2] = z;
+                initialPositions[i*3] = x; initialPositions[i*3+1] = y; initialPositions[i*3+2] = z;
+                colors[i*3] = CONFIG.colors.base.r; colors[i*3+1] = CONFIG.colors.base.g; colors[i*3+2] = CONFIG.colors.base.b;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            material = new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 }, uSize: { value: 0.2 * window.innerHeight } },
+                vertexShader: `
+                    uniform float uSize; attribute vec3 color; varying vec3 vColor;
+                    void main() { vColor = color; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_PointSize = uSize * (1.0 / -mvPosition.z); gl_Position = projectionMatrix * mvPosition; }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor; void main() { float r = distance(gl_PointCoord, vec2(0.5)); if (r > 0.5) discard; gl_FragColor = vec4(vColor, 1.0 - r * 2.0); }
+                `,
+                transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+            });
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+        }
+
+        function updateParticles() {
+            const positionsAttr = points.geometry.attributes.position;
+            const colorsAttr = points.geometry.attributes.color;
+            const targetX = (handData.x - 0.5) * 30;
+            const targetY = -(handData.y - 0.5) * 20;
+            let targetColor = CONFIG.colors.base;
+            if (handData.gesture === 'PINCH') targetColor = CONFIG.colors.pinch;
+            if (handData.gesture === 'OPEN') targetColor = CONFIG.colors.fan;
+
+            for (let i = 0; i < CONFIG.particleCount; i++) {
+                const ix = i * 3;
+                let px = positions[ix], py = positions[ix+1], pz = positions[ix+2];
+                let vx = velocities[ix], vy = velocities[ix+1], vz = velocities[ix+2];
+                vx += (initialPositions[ix] - px) * 0.015; vy += (initialPositions[ix+1] - py) * 0.015; vz += (initialPositions[ix+2] - pz) * 0.015;
+                if (handData.active) {
+                    const dx = targetX - px, dy = targetY - py, dz = -pz;
+                    const distSq = dx*dx + dy*dy + dz*dz;
+                    if (distSq < 100) {
+                        const force = 50 / (distSq + 0.1);
+                        if (handData.gesture === 'PINCH') { vx -= dx * force * 0.05; vy -= dy * force * 0.05; vz -= dz * force * 0.05; }
+                        else if (handData.gesture === 'OPEN') { vx += (dy - dx) * 0.05; vy -= (dx + dy) * 0.05; }
+                        else { vx += dx * 0.02; vy += dy * 0.02; vz += dz * 0.02; }
+                    }
+                }
+                vx *= 0.95; vy *= 0.95; vz *= 0.95;
+                positions[ix] = px + vx; positions[ix+1] = py + vy; positions[ix+2] = pz + vz;
+                colorsAttr.array[ix] += (targetColor.r - colorsAttr.array[ix]) * 0.05;
+                colorsAttr.array[ix+1] += (targetColor.g - colorsAttr.array[ix+1]) * 0.05;
+                colorsAttr.array[ix+2] += (targetColor.b - colorsAttr.array[ix+2]) * 0.05;
+            }
+            positionsAttr.needsUpdate = true; colorsAttr.needsUpdate = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+            material.uniforms.uTime.value = time;
+            updateParticles();
+            renderer.render(scene, camera);
+        }
+
+        function initMediaPipe() {
+            const videoElement = document.getElementById('input-video');
+            const statusInd = document.getElementById('status-indicator');
+            statusInd.innerText = "正在启动摄像头...";
+
+            const hands = new Hands({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+            
+            hands.onResults((results) => {
+                const fanText = document.getElementById('fan-text');
+                
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    if(!handData.active) {
+                        statusInd.innerText = "✅ 手部已捕获";
+                        statusInd.classList.add('status-active');
+                    }
+                    
+                    const landmarks = results.multiHandLandmarks[0];
+                    const palm = landmarks[9];
+                    handData.active = true; handData.x = 1.0 - palm.x; handData.y = palm.y;
+                    
+                    const thumbTip = landmarks[4]; 
+                    const indexTip = landmarks[8];
+                    const distance = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
+                    
+                    if (distance < 0.05) { 
+                        handData.gesture = 'PINCH'; 
+                        fanText.classList.remove('visible'); 
+                    } 
+                    else if (distance > 0.08) { 
+                        handData.gesture = 'OPEN';
+                        // 修改：更新文案，加爱心
+                        fanText.innerHTML = `<span class="highlight-id">${currentUserId}</span> 是涵堡包铁粉 💖`;
+                        fanText.classList.add('visible');
+                    } 
+                    else { 
+                        handData.gesture = 'NONE'; 
+                        fanText.classList.remove('visible'); 
+                    }
+                } else { 
+                    if(handData.active) {
+                        statusInd.innerText = "⚠️ 寻找手部...";
+                        statusInd.classList.remove('status-active');
+                    }
+                    handData.active = false; 
+                    fanText.classList.remove('visible'); 
+                }
+            });
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => await hands.send({image: videoElement}),
+                width: 640, height: 480
+            });
+            camera.start();
+        }
+    </script>
+</body>
+</html>
