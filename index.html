@@ -3,139 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>煮鱼铁粉认证中心 (国内极速版)</title>
+    <title>煮鱼空间认证 </title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #050505;
-            font-family: 'Microsoft YaHei', sans-serif;
-        }
-
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 1;
-        }
-
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Microsoft YaHei', sans-serif; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         #input-video { display: none; }
-
-        /* --- 登录弹窗样式 --- */
+        
+        /* 登录弹窗 */
         #login-modal {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(10px);
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            transition: opacity 0.5s;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; transition: opacity 0.5s;
         }
-
         #login-box {
-            background: #111;
-            padding: 40px;
-            border: 1px solid #00ffcc;
-            border-radius: 15px;
-            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
-            text-align: center;
+            background: #111; padding: 40px; border: 1px solid #00ffcc; border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2); text-align: center;
         }
-
         h2 { margin-top: 0; color: #00ffcc; text-transform: uppercase; letter-spacing: 2px; }
-
         input {
-            background: #222;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 10px 15px;
-            font-size: 18px;
-            border-radius: 5px;
-            outline: none;
-            margin: 20px 0;
-            text-align: center;
-            width: 200px;
-            transition: border-color 0.3s;
+            background: #222; border: 1px solid #444; color: #fff; padding: 10px 15px;
+            font-size: 18px; border-radius: 5px; outline: none; margin: 20px 0;
+            text-align: center; width: 200px; transition: border-color 0.3s;
         }
         input:focus { border-color: #ff69b4; }
-
         button {
-            background: linear-gradient(45deg, #00ffcc, #0088ff);
-            border: none;
-            padding: 10px 30px;
-            color: #000;
-            font-weight: bold;
-            font-size: 16px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: transform 0.2s;
+            background: linear-gradient(45deg, #00ffcc, #0088ff); border: none; padding: 10px 30px;
+            color: #000; font-weight: bold; font-size: 16px; border-radius: 25px;
+            cursor: pointer; transition: transform 0.2s;
         }
         button:hover { transform: scale(1.05); box-shadow: 0 0 15px #00ffcc; }
 
-        /* --- UI 提示层 --- */
-        #ui-layer {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: #00ffcc;
-            z-index: 10;
-            pointer-events: none;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 15px;
-            border: 1px solid #00ffcc;
-            border-radius: 8px;
-            opacity: 0;
-            transition: opacity 1s;
-        }
-
-        /* --- 核心文字特效 --- */
+        /* 文字与UI */
         #fan-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.5);
-            color: #ff69b4;
-            font-size: 80px;
-            font-weight: 900;
-            z-index: 20;
-            opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            pointer-events: none;
-            text-shadow: 0 0 20px #ff0055, 0 0 40px #ff0055;
-            white-space: nowrap;
-            text-align: center;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+            color: #ff69b4; font-size: 80px; font-weight: 900; z-index: 20; opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none;
+            text-shadow: 0 0 20px #ff0055, 0 0 40px #ff0055; white-space: nowrap; text-align: center;
         }
-
-        #fan-text.visible {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
+        #fan-text.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .highlight-id { color: #00ffcc; text-shadow: 0 0 20px #00ffcc; margin-right: 15px; }
+        #ui-layer {
+            position: absolute; top: 20px; left: 20px; color: #00ffcc; z-index: 10;
+            pointer-events: none; background: rgba(0, 0, 0, 0.5); padding: 15px;
+            border: 1px solid #00ffcc; border-radius: 8px; opacity: 0; transition: opacity 1s;
         }
-
-        .highlight-id {
-            color: #00ffcc;
-            text-shadow: 0 0 20px #00ffcc;
-            margin-right: 15px;
-        }
-
         .loading { color: #ff0055; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
-    <!-- 登录弹窗 -->
     <div id="login-modal">
         <div id="login-box">
             <h2>煮鱼空间认证</h2>
-            <p style="font-size: 12px; color: #888;">请输入您的昵称 (国内加速版)</p>
+            <p style="font-size: 12px; color: #888;">阿里源加速版 (无需VPN)</p>
             <input type="text" id="username-input" maxlength="5" placeholder="例如：煮鱼">
             <br>
             <button onclick="startExperience()">进入空间</button>
+            <p id="error-msg" style="color:red; font-size:12px; margin-top:10px; display:none;">资源加载失败，请刷新重试</p>
         </div>
     </div>
 
@@ -154,20 +80,19 @@
     <video id="input-video"></video>
     <div id="canvas-container"></div>
 
-    <!-- 依赖库：全部替换为 unpkg.zhimg.com (知乎国内镜像) -->
+    <!-- 核心修改：使用 npm.elemecdn.com (饿了么源，非常稳) -->
     <script type="importmap">
         {
             "imports": {
-                "three": "https://unpkg.zhimg.com/three@0.160.0/build/three.module.js"
+                "three": "https://npm.elemecdn.com/three@0.160.0/build/three.module.js"
             }
         }
     </script>
     
-    <!-- MediaPipe 国内镜像源 -->
-    <script src="https://unpkg.zhimg.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.zhimg.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.zhimg.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.zhimg.com/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://npm.elemecdn.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://npm.elemecdn.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://npm.elemecdn.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://npm.elemecdn.com/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script type="module">
         import * as THREE from 'three';
@@ -176,11 +101,11 @@
         let scene, camera, renderer, material, points;
         let positions, velocities, initialPositions;
         let time = 0;
+        let handData = { active: false, x: 0, y: 0, gesture: 'NONE' };
         
-        let handData = {
-            active: false,
-            x: 0, y: 0,
-            gesture: 'NONE'
+        // 简单的错误捕获，如果报错了在界面上提示一下
+        window.onerror = function() {
+            document.getElementById('error-msg').style.display = 'block';
         };
 
         const CONFIG = {
@@ -195,9 +120,11 @@
         window.startExperience = function() {
             const input = document.getElementById('username-input');
             const val = input.value.trim();
+            if (!val) { alert("请输入ID才能进入！"); return; }
 
-            if (!val) {
-                alert("请输入ID才能进入！");
+            // 检查库是否加载成功
+            if (typeof Hands === 'undefined') {
+                alert("资源正在下载中，请稍等几秒钟再点击，或者刷新页面重试。");
                 return;
             }
 
@@ -209,24 +136,25 @@
             setTimeout(() => modal.style.display = 'none', 500);
             document.getElementById('ui-layer').style.opacity = '1';
 
-            initThree();
-            initMediaPipe();
-            animate();
+            try {
+                initThree();
+                initMediaPipe();
+                animate();
+            } catch (e) {
+                alert("启动失败：" + e.message);
+            }
         };
 
         function initThree() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x050505, 0.03);
-
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
             camera.position.z = 20;
-
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
-
             createParticles();
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -246,40 +174,23 @@
                 const r = 15 * Math.cbrt(Math.random());
                 const theta = Math.random() * 2 * Math.PI;
                 const phi = Math.acos(2 * Math.random() - 1);
-                
                 const x = r * Math.sin(phi) * Math.cos(theta);
                 const y = r * Math.sin(phi) * Math.sin(theta);
                 const z = r * Math.cos(phi);
-
                 positions[i*3] = x; positions[i*3+1] = y; positions[i*3+2] = z;
                 initialPositions[i*3] = x; initialPositions[i*3+1] = y; initialPositions[i*3+2] = z;
-                
-                colors[i*3] = CONFIG.colors.base.r;
-                colors[i*3+1] = CONFIG.colors.base.g;
-                colors[i*3+2] = CONFIG.colors.base.b;
+                colors[i*3] = CONFIG.colors.base.r; colors[i*3+1] = CONFIG.colors.base.g; colors[i*3+2] = CONFIG.colors.base.b;
             }
-
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
             material = new THREE.ShaderMaterial({
                 uniforms: { uTime: { value: 0 }, uSize: { value: 0.2 * window.innerHeight } },
                 vertexShader: `
                     uniform float uSize; attribute vec3 color; varying vec3 vColor;
-                    void main() {
-                        vColor = color;
-                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                        gl_PointSize = uSize * (1.0 / -mvPosition.z);
-                        gl_Position = projectionMatrix * mvPosition;
-                    }
+                    void main() { vColor = color; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_PointSize = uSize * (1.0 / -mvPosition.z); gl_Position = projectionMatrix * mvPosition; }
                 `,
                 fragmentShader: `
-                    varying vec3 vColor;
-                    void main() {
-                        float r = distance(gl_PointCoord, vec2(0.5));
-                        if (r > 0.5) discard;
-                        gl_FragColor = vec4(vColor, 1.0 - r * 2.0);
-                    }
+                    varying vec3 vColor; void main() { float r = distance(gl_PointCoord, vec2(0.5)); if (r > 0.5) discard; gl_FragColor = vec4(vColor, 1.0 - r * 2.0); }
                 `,
                 transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
             });
@@ -292,7 +203,6 @@
             const colorsAttr = points.geometry.attributes.color;
             const targetX = (handData.x - 0.5) * 30;
             const targetY = -(handData.y - 0.5) * 20;
-
             let targetColor = CONFIG.colors.base;
             if (handData.gesture === 'PINCH') targetColor = CONFIG.colors.pinch;
             if (handData.gesture === 'OPEN') targetColor = CONFIG.colors.fan;
@@ -301,35 +211,24 @@
                 const ix = i * 3;
                 let px = positions[ix], py = positions[ix+1], pz = positions[ix+2];
                 let vx = velocities[ix], vy = velocities[ix+1], vz = velocities[ix+2];
-
-                vx += (initialPositions[ix] - px) * 0.015;
-                vy += (initialPositions[ix+1] - py) * 0.015;
-                vz += (initialPositions[ix+2] - pz) * 0.015;
-
+                vx += (initialPositions[ix] - px) * 0.015; vy += (initialPositions[ix+1] - py) * 0.015; vz += (initialPositions[ix+2] - pz) * 0.015;
                 if (handData.active) {
                     const dx = targetX - px, dy = targetY - py, dz = -pz;
                     const distSq = dx*dx + dy*dy + dz*dz;
                     if (distSq < 100) {
                         const force = 50 / (distSq + 0.1);
-                        if (handData.gesture === 'PINCH') {
-                            vx -= dx * force * 0.05; vy -= dy * force * 0.05; vz -= dz * force * 0.05;
-                        } else if (handData.gesture === 'OPEN') {
-                            vx += (dy - dx) * 0.05; vy -= (dx + dy) * 0.05; 
-                        } else {
-                            vx += dx * 0.02; vy += dy * 0.02; vz += dz * 0.02;
-                        }
+                        if (handData.gesture === 'PINCH') { vx -= dx * force * 0.05; vy -= dy * force * 0.05; vz -= dz * force * 0.05; }
+                        else if (handData.gesture === 'OPEN') { vx += (dy - dx) * 0.05; vy -= (dx + dy) * 0.05; }
+                        else { vx += dx * 0.02; vy += dy * 0.02; vz += dz * 0.02; }
                     }
                 }
-
                 vx *= 0.95; vy *= 0.95; vz *= 0.95;
                 positions[ix] = px + vx; positions[ix+1] = py + vy; positions[ix+2] = pz + vz;
-                
                 colorsAttr.array[ix] += (targetColor.r - colorsAttr.array[ix]) * 0.05;
                 colorsAttr.array[ix+1] += (targetColor.g - colorsAttr.array[ix+1]) * 0.05;
                 colorsAttr.array[ix+2] += (targetColor.b - colorsAttr.array[ix+2]) * 0.05;
             }
-            positionsAttr.needsUpdate = true;
-            colorsAttr.needsUpdate = true;
+            positionsAttr.needsUpdate = true; colorsAttr.needsUpdate = true;
         }
 
         function animate() {
@@ -344,9 +243,9 @@
             const videoElement = document.getElementById('input-video');
             const statusText = document.getElementById('status-text');
 
-            // 关键修改：强制使用国内镜像路径加载 AI 模型文件
+            // 核心修改：使用 npm.elemecdn.com 加载模型
             const hands = new Hands({locateFile: (file) => {
-                return `https://unpkg.zhimg.com/@mediapipe/hands/${file}`;
+                return `https://npm.elemecdn.com/@mediapipe/hands/${file}`;
             }});
 
             hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
@@ -357,50 +256,32 @@
                 width: 640, height: 480
             });
             
-            camera.start()
-                .then(() => {
-                    statusText.innerText = "已激活 (Active)";
-                    statusText.classList.remove("loading");
-                    statusText.style.color = "#00ffcc";
-                })
-                .catch(err => {
-                    statusText.innerText = "摄像头启动失败，请检查HTTPS环境";
-                    alert("无法启动摄像头。请确保您使用的是 https:// 协议或 localhost。");
-                });
+            camera.start().then(() => {
+                statusText.innerText = "已连接 (Connected)";
+                statusText.classList.remove("loading");
+                statusText.style.color = "#00ffcc";
+            }).catch(e => {
+                statusText.innerText = "Error: " + e;
+                alert("摄像头启动失败。请确保您使用的是 https 协议。");
+            });
         }
 
         function onHandsResults(results) {
             const fanText = document.getElementById('fan-text');
-
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const landmarks = results.multiHandLandmarks[0];
                 const palm = landmarks[9];
-                
-                handData.active = true;
-                handData.x = 1.0 - palm.x;
-                handData.y = palm.y;
-
-                const thumbTip = landmarks[4];
-                const indexTip = landmarks[8];
+                handData.active = true; handData.x = 1.0 - palm.x; handData.y = palm.y;
+                const thumbTip = landmarks[4]; const indexTip = landmarks[8];
                 const distance = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
-
-                if (distance < 0.05) {
-                    handData.gesture = 'PINCH';
-                    fanText.classList.remove('visible');
-                } else if (distance > 0.12) {
+                if (distance < 0.05) { handData.gesture = 'PINCH'; fanText.classList.remove('visible'); }
+                else if (distance > 0.12) {
                     handData.gesture = 'OPEN';
                     fanText.innerHTML = `<span class="highlight-id">${currentUserId}</span> 是煮鱼铁粉`;
                     fanText.classList.add('visible');
-                } else {
-                    handData.gesture = 'NONE';
-                    fanText.classList.remove('visible');
-                }
-            } else {
-                handData.active = false;
-                fanText.classList.remove('visible');
-            }
+                } else { handData.gesture = 'NONE'; fanText.classList.remove('visible'); }
+            } else { handData.active = false; fanText.classList.remove('visible'); }
         }
     </script>
 </body>
-
 </html>
